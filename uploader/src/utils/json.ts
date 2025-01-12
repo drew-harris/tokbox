@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import type { ArgValues } from "..";
+import { db, schema } from "../db";
 
 type TiktokVid = { Date: string; Link: string };
 export type TiktokData = {

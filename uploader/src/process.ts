@@ -39,9 +39,8 @@ export const processVideo = async (video: BaseVideo) => {
     filename: string;
   };
 
-
   if (!cobaltData.url) {
-    return
+    return;
   }
   // Download url as buffer and upload to S3Client
   const buffer = await fetch(cobaltData.url).then((r) => r.arrayBuffer());
@@ -49,14 +48,17 @@ export const processVideo = async (video: BaseVideo) => {
   await client.write(cobaltData.filename, buffer);
 
   // Save to postgres
-  const [inserted] = await db.insert(schema.videos).values({
-    id: id,
-    date: parseTiktokTime(video.date),
-    file_name: cobaltData.filename,
-    liked: true,
-    saved: false,
-  }).returning();
-  return inserted
+  const [inserted] = await db
+    .insert(schema.videos)
+    .values({
+      id: id,
+      date: parseTiktokTime(video.date),
+      file_name: cobaltData.filename,
+      liked: false,
+      saved: false,
+    })
+    .returning();
+  return inserted;
 };
 
 const getRedirect = async (url: string) => {

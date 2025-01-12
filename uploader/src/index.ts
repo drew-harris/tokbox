@@ -3,6 +3,7 @@ import { z } from "zod";
 import { applyFilters, getTiktokDataFromFile } from "./utils/json";
 import { processVideo } from "./process";
 import { db, schema } from "./db";
+import { sql } from "drizzle-orm";
 
 const argsSchema = z.object({
   path: z.string().default("./data.json"),
@@ -18,13 +19,13 @@ export type ArgValues = z.infer<typeof argsSchema>;
 async function poolAll<T, R>(
   items: T[],
   concurrent: number,
-  fn: (item: T, index: number) => Promise<R>
+  fn: (item: T, index: number) => Promise<R>,
 ) {
   const pool = new Set();
   const results: R[] = [];
 
   for (const [index, item] of items.entries()) {
-    const promise = fn(item, index).catch(err => {
+    const promise = fn(item, index).catch((err) => {
       console.error(`Error processing index ${index}:`, err);
       return null;
     });
@@ -87,18 +88,39 @@ async function main() {
   console.log(positionals);
   if (positionals.includes("transfer")) {
     console.log("Transferring watched videos");
-    await db.insert(schema.watched).values(data.Activity["Video Browsing History"].VideoList.map(v => ({ date: v.Date, link: v.Link })))
+    const chunkSize = 1000;
+    const videoList = data.Activity["Video Browsing History"].VideoList;
+    for (let i = 0; i < videoList.length; i += chunkSize) {
+      const chunk = videoList.slice(i, i + chunkSize);
+      await db
+        .insert(schema.watched)
+        .values(chunk.map((v) => ({ date: v.Date, link: v.Link })))
+        .onConflictDoNothing();
+      console.log(
+        `Transferred ${i + chunk.length} / ${videoList.length} videos`,
+      );
+    }
     process.exit(0);
   }
 
-  const videos = applyFilters(parsed, data);
+  let videos = [];
+  if (parsed.type !== "watched") {
+    videos = applyFilters(parsed, data);
+  } else {
+    videos = await db
+      .select()
+      .from(schema.watched)
+      .orderBy(sql`md5(link::text || ${"hsoeij"}::text)`);
+  }
 
   if (parsed.limit) {
     videos.splice(parsed.limit);
   }
 
   const toProcess = videos.slice(parsed.cursor);
-  console.log(`Processing ${toProcess.length} videos with ${parsed.concurrent} concurrent requests`);
+  console.log(
+    `Processing ${toProcess.length} videos with ${parsed.concurrent} concurrent requests`,
+  );
 
   await poolAll(toProcess, parsed.concurrent, async (video, index) => {
     const actualIndex = index + parsed.cursor;
@@ -108,11 +130,14 @@ async function main() {
 
       console.log(
         `Index: ${String(actualIndex).padStart(5, "0")}, ` +
-        `Uploaded https://tokbox-archive-drewh.s3.us-east-1.amazonaws.com/${vid.file_name}`
+          `Uploaded https://tokbox-archive-drewh.s3.us-east-1.amazonaws.com/${vid.file_name}`,
       );
 
       if (actualIndex % 20 === 0) {
-        await Bun.write("./cursor.json", JSON.stringify({ cursor: actualIndex }));
+        await Bun.write(
+          "./cursor.json",
+          JSON.stringify({ cursor: actualIndex }),
+        );
       }
     } catch (err) {
       console.error(`Error at index ${actualIndex}:`, err);
