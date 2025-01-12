@@ -53,8 +53,8 @@ export const processVideo = async (video: BaseVideo) => {
     id: id,
     date: parseTiktokTime(video.date),
     file_name: cobaltData.filename,
-    liked: false,
-    saved: true,
+    liked: true,
+    saved: false,
   }).returning();
   return inserted
 };
