@@ -4,7 +4,7 @@ import { poolAll } from ".";
 import { db, schema } from "./db";
 import { z } from "zod";
 
-const MIN_LIKES = 10;
+const MIN_LIKES = 3;
 
 export const processComments = async (args: ArgValues) => {
   const filters: (SQLWrapper | undefined)[] = [];
@@ -137,7 +137,6 @@ const transformCommentToDatabase = (
 };
 
 const processVideo = async (video: typeof schema.videos.$inferSelect) => {
-  // check if there are already comments for this video
   const prevComments = await db
     .select()
     .from(schema.comments)
