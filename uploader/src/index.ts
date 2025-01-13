@@ -4,6 +4,7 @@ import { applyFilters, getTiktokDataFromFile } from "./utils/json";
 import { processVideo } from "./process";
 import { db, schema } from "./db";
 import { sql } from "drizzle-orm";
+import { processComments } from "./comments";
 
 const argsSchema = z.object({
   path: z.string().default("./data.json"),
@@ -16,7 +17,7 @@ const argsSchema = z.object({
 export type ArgValues = z.infer<typeof argsSchema>;
 
 // Simple promise pool implementation
-async function poolAll<T, R>(
+export async function poolAll<T, R>(
   items: T[],
   concurrent: number,
   fn: (item: T, index: number) => Promise<R>,
@@ -100,6 +101,9 @@ async function main() {
         `Transferred ${i + chunk.length} / ${videoList.length} videos`,
       );
     }
+    process.exit(0);
+  } else if (positionals.includes("comments")) {
+    await processComments(parsed);
     process.exit(0);
   }
 
