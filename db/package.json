@@ -1,16 +1,17 @@
 {
-  "name": "tokbox",
+  "name": "db",
   "module": "index.ts",
   "type": "module",
-  "workspaces": [
-    "uploader",
-    "db",
-    "website"
-  ],
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "exports": {
+    ".": "./schema.ts"
+  },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.38.3"
   }
 }
